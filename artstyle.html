@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AGI RUN — арт-стиль</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0b0b12;color:#e8e8f0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       padding:28px 20px 60px}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:30px;letter-spacing:5px;margin-bottom:4px}
+  h1 span{color:#FFD447}
+  .lead{color:#8b8b9c;font-size:13px;line-height:1.6;max-width:720px;margin-bottom:26px}
+  h2{font-size:13px;letter-spacing:2.5px;text-transform:uppercase;color:#FFD447;
+     margin:34px 0 4px;padding-bottom:8px;border-bottom:1px solid #24242f}
+  .note{color:#6c6c80;font-size:12px;line-height:1.6;margin:8px 0 16px}
+  .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:14px 0 18px}
+  .bar b{font-size:11px;color:#6c6c80;letter-spacing:1.5px;text-transform:uppercase;margin-right:4px}
+  button{background:#1c1c26;color:#c9c9d6;border:1px solid #2e2e3c;border-radius:7px;
+         padding:7px 13px;font-size:12px;cursor:pointer;transition:.1s}
+  button:hover{border-color:#4a4a60}
+  button.on{background:#FFD447;color:#0b0b12;border-color:#FFD447;font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:12px}
+  .cell{background:#14141c;border:1px solid #24242f;border-radius:12px;padding:10px;text-align:center}
+  .cell canvas{display:block;width:100%;border-radius:8px;background:
+     linear-gradient(160deg,#1e1e2a,#15151e)}
+  .cell b{display:block;font-size:12.5px;margin-top:8px}
+  .cell i{display:block;font-size:10px;color:#7a7a90;font-style:normal;letter-spacing:1px;
+          text-transform:uppercase;margin-top:2px}
+  .wide{background:#14141c;border:1px solid #24242f;border-radius:12px;padding:10px}
+  .wide canvas{display:block;width:100%;border-radius:8px}
+  .swatches{display:flex;flex-wrap:wrap;gap:8px}
+  .sw{width:88px;border-radius:8px;overflow:hidden;border:1px solid #24242f}
+  .sw div{height:38px}.sw p{font-size:9.5px;padding:5px 6px;color:#8b8b9c;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AGI <span>RUN</span> — арт-стиль</h1>
+  <div class="lead">Весь арт нарисован кодом: ни одного PNG. Каждый персонаж — это набор параметров
+    (кожа, причёска, одежда, аксессуар), а анимация считается синусами, а не покадровкой.
+    Поэтому любую деталь можно поправить одной строкой, а вся графика игры весит 0 КБ.</div>
+
+  <h2>Персонажи</h2>
+  <div class="note">Пропорции 2.5 головы — чиби. Это делает шарж добрым и позволяет читать лицо
+    на спрайте 96 px. Контур не чёрный, а тёмная версия заливки: так выглядит дороже.</div>
+  <div class="bar"><b>Поза</b><span id="poses"></span></div>
+  <div class="bar"><b>Тир модели</b><span id="tiers"></span></div>
+  <div class="grid" id="cast"></div>
+
+  <h2>Враги</h2>
+  <div class="note">Правило читаемости: опасные — угловатые и красноватые, медленные — округлые и серые.
+    Игрок должен опознать врага за 0.2 секунды.</div>
+  <div class="grid" id="foes"></div>
+
+  <h2>Боссы</h2>
+  <div class="note">Илон на кибертраке (мир 2) · Трёхглавый Регулятор (мир 3, вымышленный персонаж) ·
+    Проблема Выравнивания (финал, три фазы — нажмите на неё).</div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))" id="bosses"></div>
+
+  <h2>Предметы</h2>
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))" id="items"></div>
+
+  <h2>Миры</h2>
+  <div class="note">Пять параллакс-фонов и тайлы, всё процедурное. Кликните по сцене — персонаж пробежит.</div>
+  <div class="bar" id="worlds"></div>
+  <div class="wide"><canvas id="scene" width="1120" height="330"></canvas></div>
+
+  <h2>Палитра</h2>
+  <div class="swatches" id="pal"></div>
+</div>
+
+<script src="art.js"></script>
+<script>
+"use strict";
+const dpr = Math.min(2, window.devicePixelRatio||1);
+function mk(parent,w,h,cls){
+  const wrapEl=document.createElement('div'); wrapEl.className=cls||'cell';
+  const cv=document.createElement('canvas');
+  cv.width=w*dpr; cv.height=h*dpr; cv.style.aspectRatio=w+'/'+h;
+  wrapEl.appendChild(cv); parent.appendChild(wrapEl);
+  const cx=cv.getContext('2d'); cx.scale(dpr,dpr);
+  return {cv,cx,w,h,el:wrapEl};
+}
+function label(el,name,sub){
+  const b=document.createElement('b'); b.textContent=name; el.appendChild(b);
+  const i=document.createElement('i'); i.textContent=sub||''; el.appendChild(i);
+}
+function chips(host,list,cur,cb){
+  host.innerHTML='';
+  list.forEach(v=>{ const b=document.createElement('button');
+    b.textContent=v.l; b.className=v.v===cur()?'on':'';
+    b.onclick=()=>{ cb(v.v); chips(host,list,cur,cb); };
+    host.appendChild(b); });
+}
+
+/* ── персонажи ── */
+let pose='run', tier=1;
+const POSES=[['idle','стоит'],['run','бежит'],['jump','прыжок'],['fall','падение'],
+  ['land','приземление'],['shoot','стреляет'],['ability','способность'],
+  ['hurt','урон'],['victory','победа']].map(([v,l])=>({v,l}));
+const TIERS=[[0,'0 · Toy Model'],[1,'1 · Chatbot'],[2,'2 · Reasoner'],[3,'3 · Agent']]
+  .map(([v,l])=>({v,l}));
+chips(document.getElementById('poses'),POSES,()=>pose,v=>pose=v);
+chips(document.getElementById('tiers'),TIERS,()=>tier,v=>tier=v);
+
+const castHost=document.getElementById('cast'); const castCv=[];
+ART.ORDER.forEach(id=>{
+  const c=ART.CAST[id], o=mk(castHost,158,168);
+  label(o.el,c.name,c.co); castCv.push({o,id});
+});
+
+/* ── враги ── */
+const foeHost=document.getElementById('foes'); const foeCv=[];
+Object.keys(ART.FOE).forEach(k=>{
+  const o=mk(foeHost,158,150); label(o.el,ART.FOE[k].label,'мир '+
+    ({skeptic:1,vc:1,miner:2,clerk:3,auditor:3,luddite:3}[k]));
+  foeCv.push({o,k});
+});
+['troll','bill','cheap'].forEach(k=>{
+  const o=mk(foeHost,158,150);
+  label(o.el,{troll:'Тролль',bill:'Счёт за свет',cheap:'Дешёвая модель'}[k],
+             {troll:'миры 2,4',bill:'мир 2',cheap:'мир 4'}[k]);
+  foeCv.push({o,k});
+});
+
+/* ── боссы ── */
+const bossHost=document.getElementById('bosses');
+const bMusk=mk(bossHost,290,210); label(bMusk.el,'Илон Маск на кибертраке','босс мира 2');
+const bReg =mk(bossHost,290,210); label(bReg.el,'Трёхглавый Регулятор','босс мира 3');
+const bAli =mk(bossHost,290,210); label(bAli.el,'Проблема Выравнивания','финальный босс · клик');
+let aliPhase=0, regFed=[false,false,false];
+bAli.el.style.cursor='pointer';
+bAli.el.onclick=()=>aliPhase=(aliPhase+1)%3;
+bReg.el.style.cursor='pointer';
+bReg.el.onclick=()=>{ const i=regFed.indexOf(false); if(i<0) regFed=[false,false,false]; else regFed[i]=true; };
+
+/* ── предметы ── */
+const itemHost=document.getElementById('items'); const items=[
+  ['chip','COMPUTE'],['star','Training Run'],['weights','Открытые веса'],
+  ['jacket','Куртка · секрет'],['cp','Чекпоинт']];
+const itemCv=items.map(([k,n])=>{ const o=mk(itemHost,118,124); label(o.el,n,''); return {o,k}; });
+
+/* ── сцена ── */
+let world=1, runner=0;
+chips(document.getElementById('worlds'),
+  [1,2,3,4,5].map(v=>({v,l:v+' · '+ART.WORLDS[v].name})),()=>world,v=>world=v);
+const sc=document.getElementById('scene');
+sc.width=1120*dpr; sc.height=330*dpr;
+const scx=sc.getContext('2d'); scx.scale(dpr,dpr);
+sc.style.cursor='pointer'; sc.onclick=()=>runner=1;
+
+/* ── палитра ── */
+const pal=document.getElementById('pal');
+[['#FFD447','COMPUTE'],['#FF3B30','урон'],['#34C759','успех'],['#10A37F','OpenAI'],
+ ['#D97757','Anthropic'],['#4285F4','DeepMind'],['#1C1C22','xAI'],['#3A6FD8','Microsoft'],
+ ['#3A57E8','DeepSeek'],['#7B61FF','Moonshot'],['#2E6BE8','Meta'],['#76B900','NVIDIA']]
+.forEach(([c,n])=>{ const d=document.createElement('div'); d.className='sw';
+  d.innerHTML='<div style="background:'+c+'"></div><p>'+c+'<br>'+n+'</p>'; pal.appendChild(d); });
+
+/* ── цикл ── */
+let T0=performance.now();
+function frame(now){
+  const t=(now-T0)/1000;
+  // персонажи
+  castCv.forEach(({o,id})=>{
+    o.cx.clearRect(0,0,o.w,o.h);
+    o.cx.save(); o.cx.translate(o.w/2,o.h-16);
+    ART.drawChar(o.cx,id,{state:pose,t:t,tier:tier,scale:1.22,dir:1});
+    o.cx.restore();
+  });
+  // враги
+  foeCv.forEach(({o,k})=>{
+    o.cx.clearRect(0,0,o.w,o.h);
+    o.cx.save(); o.cx.translate(o.w/2,o.h-24);
+    if(k==='troll') ART.drawTroll(o.cx,0,-40,t,-1);
+    else if(k==='bill') ART.drawBill(o.cx,0,-42,t);
+    else if(k==='cheap'){ for(let i=0;i<3;i++)
+      ART.drawCheap(o.cx,-32+i*32,-40+Math.sin(t*3+i)*10,t+i,180+i*60); }
+    else ART.drawFoe(o.cx,k,{t:t,dir:1,scale:1.25});
+    o.cx.restore();
+  });
+  // боссы
+  bMusk.cx.clearRect(0,0,bMusk.w,bMusk.h);
+  bMusk.cx.save(); bMusk.cx.translate(bMusk.w/2,bMusk.h-22);
+  ART.drawVehicleBoss(bMusk.cx,'musk',{t:t,scale:0.98,dir:1}); bMusk.cx.restore();
+
+  bReg.cx.clearRect(0,0,bReg.w,bReg.h);
+  bReg.cx.save(); bReg.cx.translate(bReg.w/2,bReg.h-16);
+  ART.drawRegulator(bReg.cx,{t:t,scale:0.6,fed:regFed}); bReg.cx.restore();
+
+  bAli.cx.clearRect(0,0,bAli.w,bAli.h);
+  bAli.cx.save(); bAli.cx.translate(bAli.w/2,bAli.h/2);
+  ART.drawAlignment(bAli.cx,{t:t,scale:1.1,phase:aliPhase,mirror:'altman',mirrorState:'run'});
+  bAli.cx.restore();
+
+  // предметы
+  itemCv.forEach(({o,k})=>{
+    o.cx.clearRect(0,0,o.w,o.h);
+    o.cx.save(); o.cx.translate(o.w/2,k==='cp'?o.h-16:o.h/2);
+    if(k==='chip') ART.drawChip(o.cx,0,0,t);
+    if(k==='star') ART.drawStar(o.cx,0,0,t);
+    if(k==='weights') ART.drawWeights(o.cx,0,0,t);
+    if(k==='jacket') ART.drawJacket(o.cx,0,0,t);
+    if(k==='cp') ART.drawCheckpoint(o.cx,0,0,(t%4)>2,t);
+    o.cx.restore();
+  });
+
+  // сцена
+  const SW=1120, SH=330, GY=272, cam=t*70;
+  ART.drawSky(scx,SW,SH,world);
+  ART.drawParallax(scx,cam,SW,SH,world,GY,t);
+  ART.drawTile(scx,0,GY,SW,SH-GY,world,'ground');
+  ART.drawTile(scx,150,GY-92,150,26,world,'plat');
+  ART.drawTile(scx,430,GY-140,150,26,world,'plat');
+  ART.drawTile(scx,760,GY-92,190,26,world,'plat');
+  for(let i=0;i<4;i++) ART.drawChip(scx,470+i*36,GY-176,t+i*0.4);
+  ART.drawCheckpoint(scx,1040,GY,true,t);
+  const foeOf={1:'skeptic',2:'miner',3:'clerk',4:'auditor',5:'luddite'}[world];
+  ART.drawFoe(scx,foeOf,{x:300+Math.sin(t*0.8)*90,y:GY,t:t,dir:Math.cos(t*0.8)>0?1:-1,scale:1.15});
+  if(world===2) ART.drawBill(scx,700+Math.sin(t)*60,GY-150,t);
+  if(world===4) for(let i=0;i<4;i++) ART.drawCheap(scx,600+i*46,GY-120+Math.sin(t*3+i)*24,t+i,190+i*45);
+  if(runner>0){ runner+=1.9; const rx=runner*2.4;
+    ART.drawChar(scx,'altman',{x:rx%(SW+120)-60,y:GY,state:'run',t:t,tier:2,scale:1.35,dir:1}); }
+  else ART.drawChar(scx,'altman',{x:90,y:GY,state:'idle',t:t,tier:1,scale:1.35,dir:1});
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
