@@ -104,6 +104,11 @@ const CAST = {
     outfit:'tee', pants:'#33384A', glasses:null, acc:null, mouth:'smile',
     fw:1.08, hv:0.98 },
 
+  awang:{ name:'Александр Ванг', co:'Meta · MSL', letter:'A', color:'#0866FF',
+    skin:SKIN.warm, hair:'#15110E', hairStyle:'shortWave', brows:'#100C0A',
+    outfit:'hoodie', pants:'#242A3A', glasses:null, acc:'muse', mouth:'smile',
+    fw:0.95, hv:0.97 },
+
   jensen:{ name:'Дженсен Хуанг', co:'NVIDIA', letter:'J', color:'#2C2C36',
     skin:SKIN.warm, hair:'#D4D4DB', hairStyle:'sideSwept', brows:'#9A9AA2',
     outfit:'jacket', pants:'#1C1E26', glasses:'rect', acc:null, mouth:'smirk',
@@ -120,7 +125,7 @@ const CAST = {
     outfit:'shirt', pants:'#2A2E38', glasses:'rect', acc:null, mouth:'smile',
     fw:1.00, hv:1.00 },
 };
-const ORDER = ['altman','amodei','demis','musk','satya','liang','yang','zuck','jensen'];
+const ORDER = ['altman','amodei','demis','musk','satya','liang','yang','zuck','awang','jensen'];
 
 /* ── позы ───────────────────────────────────────────────────────
    Возвращает углы конечностей. Всё через синусы — покадровка не нужна. */
@@ -419,6 +424,17 @@ function drawAcc(c,t){
     fs('#1A2E7A'); circle(bx-5.4,by-1.6,1.3); X.fill();
     ss('#BFD4FF'); X.lineWidth=1.8; X.lineCap='round';
     X.beginPath(); X.moveTo(bx-9,by-7); X.quadraticCurveTo(bx-13,by-15,bx-8,by-19); X.stroke();
+    X.restore();
+  }
+  if(c.acc==='muse'){                           // искра-спутник (Muse Spark)
+    const mx=34+Math.sin(t*1.7)*3, my=-102+Math.cos(t*1.3)*4, k=1+Math.sin(t*6)*0.12;
+    X.save();
+    fs('rgba(120,170,255,.25)'); circle(mx,my,15*k); X.fill();
+    X.translate(mx,my); X.rotate(t*0.8); X.scale(k,k);
+    fs('#FFFFFF'); X.beginPath();
+    for(let i=0;i<8;i++){ const a=i*Math.PI/4, r=i%2?3.2:11; X.lineTo(Math.cos(a)*r,Math.sin(a)*r); }
+    X.closePath(); X.fill(); stroke('#5A8CFF',2);
+    fs('#9EC2FF'); circle(0,0,2.6); X.fill();
     X.restore();
   }
   if(c.acc==='rocket'){                         // значок-ракета на груди
@@ -1051,6 +1067,7 @@ function drawParallax(ctx,cam,w,h,world,gy,t){
 function drawTile(ctx,x,y,w,h,world,kind){
   setCtx(ctx); const W=WORLDS[world]; LW=0;
   const base = kind==='plat' ? W.plat : W.ground;
+  if(kind==='plat'){ fs('rgba(0,0,0,.16)'); rrect(x+5,y+h-2,w-10,9,5); X.fill(); }
   fs(base); rrect(x,y,w,h,kind==='plat'?6:0); X.fill();
   fs(W.top); rrect(x,y,w,10,kind==='plat'?6:0); X.fill();
   fs('rgba(0,0,0,.14)'); X.fillRect(x,y+10,w,4);
@@ -1060,6 +1077,99 @@ function drawTile(ctx,x,y,w,h,world,kind){
     for(let i=0;i<Math.floor(w/22);i++) X.fillRect(x+4+i*22,y+16,13,3); }
   if(world===4){ ss(W.top); X.lineWidth=2; X.globalAlpha=.5;
     X.beginPath(); X.moveTo(x,y+2); X.lineTo(x+w,y+2); X.stroke(); X.globalAlpha=1; }
+  fs('rgba(255,255,255,.22)'); rrect(x+3,y+2,Math.max(0,w-6),3,2); X.fill();   // блик кромки
+}
+
+/** детали поверх земли: трава, кактусы, лужи с неоном. Детерминированы по x,
+    чтобы при движении камеры ничего не «кипело» */
+function drawGroundDecor(ctx,x,y,w,world,t){
+  setCtx(ctx);
+  const h=(n)=>{ const v=Math.sin(n*127.1+311.7)*43758.5453; return v-Math.floor(v); };
+  const step=46, i0=Math.ceil(x/step), i1=Math.floor((x+w-14)/step);
+  for(let i=i0;i<=i1;i++){
+    const r=h(i), r2=h(i+71), gx=i*step+r2*20;
+    if(gx<x+6||gx>x+w-10) continue;
+    if(world===1){
+      if(r<0.45){ fs('#4CA94C'); const sw=Math.sin(t*2+i)*1.6;
+        poly([[gx-7,y+2],[gx-4+sw,y-11],[gx-1,y+2]]); X.fill();
+        poly([[gx-2,y+2],[gx+1+sw,y-15],[gx+4,y+2]]); X.fill();
+        poly([[gx+3,y+2],[gx+7+sw,y-9],[gx+9,y+2]]); X.fill(); }
+      else if(r<0.6){ fs('#3E9A46'); X.fillRect(gx,y-10,2,10);
+        fs(['#FF6B8A','#FFFFFF','#FFD447'][i%3]); circle(gx+1,y-12,4); X.fill();
+        fs('#FFB020'); circle(gx+1,y-12,1.6); X.fill(); }
+    } else if(world===2){
+      if(r<0.18){ fs('#6E8A3A'); rrect(gx-3,y-22,7,24,3); X.fill();
+        rrect(gx-10,y-15,6,11,3); X.fill(); rrect(gx+6,y-18,6,10,3); X.fill(); }
+      else if(r<0.42){ fs('#9A6A48'); ellipse(gx,y+1,7+r2*5,4); X.fill(); }
+    } else if(world===3){
+      if(r<0.22){ fs('#F7F3E8'); X.save(); X.translate(gx,y-2); X.rotate(r2-0.5);
+        X.fillRect(-7,-4,14,9); fs('#C9C0A8'); X.fillRect(-5,-2,10,1.2); X.fillRect(-5,1,8,1.2);
+        X.restore(); }
+    } else if(world===4){
+      if(r<0.3){ fs('rgba(0,229,255,'+(0.16+Math.sin(t*3+i)*0.06)+')');
+        ellipse(gx,y+6,16+r2*14,3); X.fill(); }
+    } else if(world===5){
+      if(r<0.5){ ss('rgba(123,97,255,.55)'); X.lineWidth=1.6;
+        X.beginPath(); X.moveTo(gx-12,y+16); X.lineTo(gx,y+16); X.lineTo(gx+6,y+24); X.lineTo(gx+18,y+24); X.stroke();
+        fs('rgba(190,170,255,'+(0.5+Math.sin(t*4+i*2)*0.4)+')'); circle(gx+18,y+24,2.2); X.fill(); }
+    }
+  }
+}
+
+/** атмосфера поверх фона: пыльца, пыль, бумаги, неоновый дождь, биты данных.
+    Экранные координаты; cam даёт лёгкий параллакс */
+function drawAmbient(ctx,w,h,world,t,cam){
+  setCtx(ctx); X.save();
+  const h1=(n)=>{ const v=Math.sin(n*12.9898+78.233)*43758.5453; return v-Math.floor(v); };
+  const wrap=(v,m)=>((v%m)+m)%m;
+  if(world===1){
+    for(let i=0;i<26;i++){ const sp=20+h1(i)*30;
+      const x=wrap(h1(i+3)*w - cam*0.6 + Math.sin(t*0.7+i)*24, w+40)-20;
+      const y=wrap(h1(i+9)*h + t*sp*0.4, h+20)-10;
+      fs('rgba(255,255,240,'+(0.35+h1(i+5)*0.4)+')'); circle(x,y,1.4+h1(i+1)*1.8); X.fill(); }
+    for(let i=0;i<3;i++){                       // бабочки
+      const x=wrap(i*370 + t*(36+i*9) - cam*0.8, w+120)-60;
+      const y=h*0.42 + Math.sin(t*1.3+i*2)*40 + i*36, f=Math.abs(Math.sin(t*14+i));
+      fs(['#FF6B8A','#7FB8FF','#FFD447'][i]);
+      ellipse(x-4*f,y,5*f+1,4,-.4); X.fill(); ellipse(x+4*f,y,5*f+1,4,.4); X.fill();
+      fs('#3A2A20'); X.fillRect(x-0.8,y-3,1.6,7); }
+  } else if(world===2){
+    for(let i=0;i<34;i++){ const x=wrap(h1(i)*w - t*(60+h1(i+2)*90) - cam*0.5, w+20)-10;
+      const y=h*0.35+h1(i+4)*h*0.6 + Math.sin(t*2+i)*6;
+      fs('rgba(255,210,150,'+(0.25+h1(i+7)*0.35)+')'); circle(x,y,1+h1(i+8)*2); X.fill(); }
+    ss('rgba(255,230,190,.10)'); X.lineWidth=3;
+    for(let k=0;k<4;k++){ X.beginPath(); const yy=h*0.78+k*26;
+      for(let x=0;x<=w;x+=24) X.lineTo(x, yy+Math.sin(x*0.03+t*3+k)*3); X.stroke(); }
+  } else if(world===3){
+    for(let i=0;i<12;i++){ const sp=26+h1(i)*30;
+      const x=wrap(h1(i+2)*w - cam*0.7 + Math.sin(t*0.9+i)*40, w+40)-20;
+      const y=wrap(h1(i+5)*h + t*sp, h+40)-20;
+      X.save(); X.translate(x,y); X.rotate(Math.sin(t*1.6+i)*0.9);
+      X.scale(1,Math.abs(Math.cos(t*2+i))*0.7+0.3);
+      fs('rgba(255,255,255,.85)'); X.fillRect(-7,-9,14,18);
+      fs('rgba(150,140,120,.6)'); for(let k=0;k<3;k++) X.fillRect(-5,-6+k*4,10,1.2);
+      X.restore(); }
+  } else if(world===4){
+    X.lineWidth=1.4;
+    for(let i=0;i<70;i++){ const x=wrap(h1(i)*w*1.2 - t*120 - cam*0.9, w+60)-30;
+      const y=wrap(h1(i+3)*h + t*(520+h1(i+1)*260), h+40)-20;
+      ss(i%3? 'rgba(0,229,255,.28)':'rgba(255,46,99,.32)');
+      X.beginPath(); X.moveTo(x,y); X.lineTo(x-5,y+16); X.stroke(); }
+  } else {
+    X.font='bold 11px ui-monospace,monospace'; X.textAlign='center';
+    for(let i=0;i<30;i++){ const x=wrap(h1(i)*w - cam*0.4, w+20)-10;
+      const y=wrap(h1(i+6)*h - t*(18+h1(i+2)*30), h+20)-10;
+      fs('rgba(170,150,255,'+(0.18+h1(i+9)*0.35)+')');
+      if(i%3) X.fillText(i%2?'1':'0',x,y); else { X.fillRect(x-2,y-2,4,4); } }
+  }
+  X.restore();
+}
+/** мягкая виньетка — собирает кадр и уводит взгляд к центру */
+function drawVignette(ctx,w,h,strength){
+  setCtx(ctx);
+  const g=X.createRadialGradient(w/2,h/2,h*0.42,w/2,h/2,h*0.95);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,'+(strength||0.32)+')');
+  fs(g); X.fillRect(0,0,w,h);
 }
 
 /* ───────────────────────── механики миров ───────────────────────── */
@@ -1164,7 +1274,7 @@ return { CAST, ORDER, FOE, WORLDS, SKIN,
   drawVehicleBoss, drawRegulator, drawAlignment,
   drawChip, drawStar, drawWeights, drawJacket, drawCheckpoint,
   drawPaperPlat, drawTape, drawStamp, drawShopSign, drawBillTide, drawPad, drawBubble,
-  drawSky, drawParallax, drawTile,
+  drawSky, drawParallax, drawTile, drawGroundDecor, drawAmbient, drawVignette,
   shade, ink, setCtx, rrect, circle, poly, capsule, limb, poseOf };
 })();
 if(typeof module!=='undefined') module.exports=ART;
